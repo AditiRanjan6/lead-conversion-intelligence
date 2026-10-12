@@ -19,7 +19,7 @@ def test_initialization_creates_registry_settings_and_leads_tables(tmp_path):
             )
         }
 
-    assert {"datasets", "application_settings", "leads"} <= tables
+    assert {"datasets", "application_settings", "leads", "import_history"} <= tables
 
 
 def test_initialization_creates_dataset_scoped_lead_indexes(tmp_path):

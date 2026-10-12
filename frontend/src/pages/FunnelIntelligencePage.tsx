@@ -1,16 +1,20 @@
 import { useCallback } from "react";
 import { AlertTriangle, CircleX, Target } from "lucide-react";
+import { Link } from "react-router-dom";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPanel } from "../components/StatusPanel";
+import { AnalyticsFilterBar } from "../components/AnalyticsFilterBar";
+import { useAnalyticsFilters } from "../context/AnalyticsFilterContext";
 import { useApiResource } from "../hooks/useApiResource";
 import { api } from "../lib/api";
 import type { FunnelAnalytics } from "../types";
 import { formatNumber, formatPercent, formatStage } from "../utils/format";
 
 export function FunnelIntelligencePage({ datasetId }: { datasetId: string }) {
+  const { filters } = useAnalyticsFilters();
   const loader = useCallback(
-    (signal: AbortSignal) => api.getFunnelAnalytics(datasetId, signal),
-    [datasetId],
+    (signal: AbortSignal) => api.getFunnelAnalytics(datasetId, filters, signal),
+    [datasetId, filters],
   );
   const resource = useApiResource(loader);
   const empty = resource.data?.total_leads === 0;
@@ -27,6 +31,8 @@ export function FunnelIntelligencePage({ datasetId }: { datasetId: string }) {
         </div>
         <div className="snapshot-pill"><Target size={15} /> Current-stage snapshot</div>
       </div>
+
+      <AnalyticsFilterBar />
 
       {resource.loading || resource.error || empty ? (
         <div className="content-card overview-status-card">
@@ -56,6 +62,8 @@ function FunnelContent({ data }: { data: FunnelAnalytics }) {
           supportingText="Current dataset snapshot"
           icon={Target}
           tone="lime"
+          definition="Count of records in the selected dataset that match the shared filters."
+          href="/leads"
         />
         <MetricCard
           label="Recorded as lost"
@@ -63,6 +71,8 @@ function FunnelContent({ data }: { data: FunnelAnalytics }) {
           supportingText="Based on current status"
           icon={CircleX}
           tone="orange"
+          definition="Leads matching the filters whose current status is recorded as lost."
+          href="/leads?status=lost"
         />
         <MetricCard
           label="Loss rate"
@@ -70,6 +80,7 @@ function FunnelContent({ data }: { data: FunnelAnalytics }) {
           supportingText="Lost leads ÷ all leads"
           icon={AlertTriangle}
           tone="dark"
+          definition="Lost leads divided by all leads that match the current shared filters."
         />
       </div>
 
@@ -84,7 +95,12 @@ function FunnelContent({ data }: { data: FunnelAnalytics }) {
         </div>
         <div className="stage-list">
           {data.stage_distribution.map((stage, index) => (
-            <div className="stage-row" key={stage.stage}>
+            <Link
+              className="stage-row stage-row-link"
+              key={stage.stage}
+              to={`/leads?stage=${encodeURIComponent(stage.stage)}`}
+              aria-label={`Inspect ${stage.lead_count} leads in ${formatStage(stage.stage)}`}
+            >
               <span className="stage-index">{String(index + 1).padStart(2, "0")}</span>
               <span className="stage-name">{formatStage(stage.stage)}</span>
               <div
@@ -104,7 +120,7 @@ function FunnelContent({ data }: { data: FunnelAnalytics }) {
               <span className="stage-share">
                 {formatPercent(stage.percentage_of_total)}
               </span>
-            </div>
+            </Link>
           ))}
         </div>
         <div className="funnel-note">

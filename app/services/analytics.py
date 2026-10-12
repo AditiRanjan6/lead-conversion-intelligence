@@ -1,7 +1,8 @@
 import sqlite3
+from datetime import date, timedelta
 from typing import TypedDict
 
-from app.models import LeadStage
+from app.models import AcquisitionSource, LeadStage, LeadStatus
 from app.services.datasets import require_registered_dataset
 
 
@@ -45,7 +46,7 @@ class GrowthOverviewMetrics(TypedDict):
 _FUNNEL_DATA_LIMITATIONS = [
     "Leads contain only their current stage; stage-transition history is not available.",
     (
-        "Stage counts and percentages describe the current dataset snapshot and "
+        "Stage counts and percentages describe the current filtered snapshot and "
         "cannot establish historical transitions or exact drop-off counts."
     ),
     "The lead schema does not record loss reasons.",
@@ -55,21 +56,37 @@ _FUNNEL_DATA_LIMITATIONS = [
 def get_funnel_analytics(
     connection: sqlite3.Connection,
     dataset_id: str,
+    *,
+    stage: LeadStage | None = None,
+    status: LeadStatus | None = None,
+    source: AcquisitionSource | None = None,
+    qualified: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> FunnelAnalyticsMetrics:
     """Calculate current-stage funnel and loss metrics for one dataset."""
 
     dataset_id = require_registered_dataset(connection, dataset_id)
+    where_clause, parameters = _analytics_filter_clause(
+        dataset_id,
+        stage=stage,
+        status=status,
+        source=source,
+        qualified=qualified,
+        date_from=date_from,
+        date_to=date_to,
+    )
     rows = connection.execute(
-        """
+        f"""
         SELECT
             stage,
             COUNT(*) AS lead_count,
             SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) AS lost_lead_count
         FROM leads
-        WHERE dataset_id = ?
+        WHERE {where_clause}
         GROUP BY stage
         """,
-        (dataset_id,),
+        parameters,
     ).fetchall()
 
     stage_counts = {stage: 0 for stage in LeadStage}
@@ -127,13 +144,29 @@ def get_funnel_analytics(
 def get_growth_overview(
     connection: sqlite3.Connection,
     dataset_id: str,
+    *,
+    stage: LeadStage | None = None,
+    status: LeadStatus | None = None,
+    source: AcquisitionSource | None = None,
+    qualified: bool | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> GrowthOverviewMetrics:
     """Calculate core growth metrics for one registered dataset."""
 
     dataset_id = require_registered_dataset(connection, dataset_id)
+    where_clause, parameters = _analytics_filter_clause(
+        dataset_id,
+        stage=stage,
+        status=status,
+        source=source,
+        qualified=qualified,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
     row = connection.execute(
-        """
+        f"""
         SELECT
             COUNT(*) AS total_leads,
             COALESCE(SUM(is_qualified), 0) AS qualified_leads,
@@ -153,9 +186,9 @@ def get_growth_overview(
                 0
             ) AS converted_deal_value
         FROM leads
-        WHERE dataset_id = ?
+        WHERE {where_clause}
         """,
-        (dataset_id,),
+        parameters,
     ).fetchone()
 
     if row is None:
@@ -182,3 +215,35 @@ def get_growth_overview(
         ),
         "converted_deal_value": round(row["converted_deal_value"], 2),
     }
+
+
+def _analytics_filter_clause(
+    dataset_id: str,
+    *,
+    stage: LeadStage | None,
+    status: LeadStatus | None,
+    source: AcquisitionSource | None,
+    qualified: bool | None,
+    date_from: date | None,
+    date_to: date | None,
+) -> tuple[str, list[object]]:
+    clauses = ["dataset_id = ?"]
+    parameters: list[object] = [dataset_id]
+    for column, value in (
+        ("stage", stage.value if stage else None),
+        ("status", status.value if status else None),
+        ("acquisition_source", source.value if source else None),
+    ):
+        if value is not None:
+            clauses.append(f"{column} = ?")
+            parameters.append(value)
+    if qualified is not None:
+        clauses.append("is_qualified = ?")
+        parameters.append(int(qualified))
+    if date_from is not None:
+        clauses.append("created_at >= ?")
+        parameters.append(f"{date_from.isoformat()}T00:00:00Z")
+    if date_to is not None:
+        clauses.append("created_at < ?")
+        parameters.append(f"{(date_to + timedelta(days=1)).isoformat()}T00:00:00Z")
+    return " AND ".join(clauses), parameters

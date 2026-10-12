@@ -25,6 +25,21 @@ _SCHEMA_STATEMENTS = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS import_history (
+        import_id TEXT PRIMARY KEY,
+        dataset_id TEXT NOT NULL REFERENCES datasets(dataset_id),
+        filename TEXT NOT NULL,
+        imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        total_rows INTEGER NOT NULL,
+        imported_rows INTEGER NOT NULL,
+        rejected_rows INTEGER NOT NULL,
+        duplicate_rows INTEGER NOT NULL,
+        outcome TEXT NOT NULL CHECK (
+            outcome IN ('completed', 'completed_with_rejections')
+        )
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS leads (
         lead_id TEXT PRIMARY KEY,
         dataset_id TEXT NOT NULL REFERENCES datasets(dataset_id),

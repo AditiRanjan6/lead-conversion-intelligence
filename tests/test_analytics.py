@@ -6,8 +6,9 @@ from fastapi.testclient import TestClient
 from app import main as main_module
 from app.database import get_connection, initialize_database
 from app.main import app
-from app.services.analytics import get_growth_overview
+from app.services.analytics import get_funnel_analytics, get_growth_overview
 from app.services.datasets import register_dataset, select_active_dataset
+from app.models import LeadStage
 
 
 @pytest.fixture
@@ -115,6 +116,86 @@ def test_growth_overview_does_not_include_other_datasets(analytics_db):
     assert result["total_leads"] == 4
     assert result["converted_leads"] == 1
     assert result["converted_deal_value"] == 5000.0
+
+
+def test_analytics_filters_are_applied_before_metrics_and_funnel_percentages(
+    analytics_db,
+):
+    with get_connection(analytics_db) as connection:
+        growth = get_growth_overview(
+            connection,
+            "analytics-test",
+            stage=LeadStage.QUALIFIED,
+        )
+        funnel = get_funnel_analytics(
+            connection,
+            "analytics-test",
+            stage=LeadStage.QUALIFIED,
+        )
+
+    assert growth["total_leads"] == 1
+    assert growth["qualified_leads"] == 1
+    assert growth["qualification_rate"] == 100.0
+    assert funnel["total_leads"] == 1
+    assert len(funnel["stage_distribution"]) == 7
+    assert funnel["stage_distribution"][2]["lead_count"] == 1
+    assert funnel["stage_distribution"][2]["percentage_of_total"] == 100.0
+
+
+def test_analytics_api_applies_source_date_and_boolean_filters(
+    analytics_db,
+    monkeypatch,
+):
+    monkeypatch.setenv("LEAD_CONVERSION_DB_PATH", str(analytics_db))
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/analytics/growth",
+            params={
+                "dataset_id": "analytics-test",
+                "source": "paid_search",
+                "date_from": "2026-10-05",
+                "date_to": "2026-10-05",
+                "qualified": "false",
+            },
+        )
+        funnel = client.get(
+            "/api/analytics/funnel",
+            params={
+                "dataset_id": "analytics-test",
+                "source": "paid_search",
+                "date_from": "2026-10-05",
+                "date_to": "2026-10-05",
+                "qualified": "false",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json()["total_leads"] == 1
+    assert response.json()["qualification_rate"] == 0
+    assert funnel.status_code == 200
+    assert funnel.json()["total_leads"] == 1
+    assert funnel.json()["stage_distribution"][0]["lead_count"] == 1
+
+
+@pytest.mark.parametrize("endpoint", ["growth", "funnel"])
+def test_analytics_api_rejects_reversed_date_filters(
+    analytics_db,
+    monkeypatch,
+    endpoint,
+):
+    monkeypatch.setenv("LEAD_CONVERSION_DB_PATH", str(analytics_db))
+    with TestClient(app) as client:
+        response = client.get(
+            f"/api/analytics/{endpoint}",
+            params={
+                "dataset_id": "analytics-test",
+                "date_from": "2026-10-05",
+                "date_to": "2026-10-01",
+            },
+        )
+
+    assert response.status_code == 422
+    assert "date_from must be on or before date_to" in response.json()["detail"]
 
 
 def test_growth_overview_returns_zero_metrics_for_empty_dataset(
@@ -286,9 +367,10 @@ def test_growth_overview_api_does_not_expose_database_errors(
     monkeypatch.setenv("LEAD_CONVERSION_DB_PATH", str(analytics_db))
 
     with TestClient(app) as client:
-        def fail_growth_query(connection, dataset_id):
+        def fail_growth_query(connection, dataset_id, **filters):
             assert connection is not None
             assert dataset_id == "analytics-test"
+            assert filters["stage"] is None
             raise sqlite3.OperationalError("private database path")
 
         monkeypatch.setattr(main_module, "get_growth_overview", fail_growth_query)

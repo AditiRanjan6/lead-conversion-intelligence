@@ -38,6 +38,7 @@ class Dataset:
     name: str
     dataset_type: DatasetType
     created_at: str
+    lead_count: int = 0
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,24 @@
+warning: in the working copy of 'requirements.txt', LF will be replaced by CRLF the next time Git touches it
+ README.md                                     |  219 [32m++++[m[31m-[m
+ app/database.py                               |   15 [32m+[m
+ app/main.py                                   |  478 [32m+++++++++[m[31m-[m
+ app/models.py                                 |    1 [32m+[m
+ app/schemas.py                                |  169 [32m+++[m[31m-[m
+ app/services/analytics.py                     |   81 [32m+[m[31m-[m
+ app/services/datasets.py                      |   50 [32m+[m[31m-[m
+ app/services/leads.py                         |  228 [32m+++++[m
+ frontend/src/App.tsx                          |   50 [32m+[m[31m-[m
+ frontend/src/components/AppLayout.tsx         |   12 [32m+[m
+ frontend/src/components/MetricCard.tsx        |   23 [32m+[m[31m-[m
+ frontend/src/hooks/useApiResource.ts          |    7 [32m+[m[31m-[m
+ frontend/src/lib/api.ts                       |  211 [32m++++[m[31m-[m
+ frontend/src/pages/FunnelIntelligencePage.tsx |   24 [32m+[m[31m-[m
+ frontend/src/pages/GrowthOverviewPage.tsx     |  215 [32m++++[m[31m-[m
+ frontend/src/styles.css                       | 1182 [32m++++++++++++++++++++++[m[31m---[m
+ frontend/src/types.ts                         |   96 [32m++[m
+ frontend/src/utils/format.ts                  |   18 [32m+[m[31m-[m
+ requirements.txt                              |    1 [32m+[m
+ tests/test_analytics.py                       |   86 [32m+[m[31m-[m
+ tests/test_database.py                        |    2 [32m+[m[31m-[m
+ tests/test_main.py                            |   21 [32m+[m
+ 22 files changed, 2909 insertions(+), 280 deletions(-)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export interface ApiResource<T> {
   data: T | null;
@@ -14,6 +14,9 @@ export function useApiResource<T>(
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => {
+    setReloadKey((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,6 +47,6 @@ export function useApiResource<T>(
     data,
     error,
     loading,
-    reload: () => setReloadKey((current) => current + 1),
+    reload,
   };
 }

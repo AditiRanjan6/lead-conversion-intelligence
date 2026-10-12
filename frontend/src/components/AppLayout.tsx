@@ -6,9 +6,11 @@ import {
   BarChart3,
   ChevronDown,
   Database,
+  FileUp,
   GitFork,
   LayoutDashboard,
   Menu,
+  UsersRound,
   X,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -32,6 +34,16 @@ const projectLinks = [
     label: "Funnel intelligence",
     path: "/funnel",
     icon: GitFork,
+  },
+  {
+    label: "Lead explorer",
+    path: "/leads",
+    icon: UsersRound,
+  },
+  {
+    label: "Data management",
+    path: "/data",
+    icon: FileUp,
   },
 ];
 

@@ -58,6 +58,27 @@ def test_api_cors_allows_deployed_frontend_origin(tmp_path, monkeypatch):
     )
 
 
+def test_api_cors_allows_admin_header_for_deployed_frontend(tmp_path, monkeypatch):
+    database_path = tmp_path / "api.sqlite3"
+    monkeypatch.setenv("LEAD_CONVERSION_DB_PATH", str(database_path))
+
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/datasets/import",
+            headers={
+                "Origin": "https://lead-conversion-intelligence-1.onrender.com",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "x-admin-token,content-type",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "https://lead-conversion-intelligence-1.onrender.com"
+    )
+    assert "X-Admin-Token" in response.headers["access-control-allow-headers"]
+
+
 def test_cors_origins_can_be_explicitly_configured(monkeypatch):
     monkeypatch.setenv(
         "LEAD_CONVERSION_CORS_ORIGINS",

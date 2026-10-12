@@ -1,8 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, LoaderCircle, RefreshCw } from "lucide-react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { StatusPanel } from "./components/StatusPanel";
+import { AdminTokenProvider } from "./context/AdminTokenContext";
+import { AnalyticsFilterProvider } from "./context/AnalyticsFilterContext";
 import { useApiResource } from "./hooks/useApiResource";
 import { api } from "./lib/api";
 import type { ActiveDatasetResponse, DatasetListResponse } from "./types";
@@ -16,6 +18,16 @@ const GrowthOverviewPage = lazy(() =>
 const FunnelIntelligencePage = lazy(() =>
   import("./pages/FunnelIntelligencePage").then((module) => ({
     default: module.FunnelIntelligencePage,
+  })),
+);
+const DataManagementPage = lazy(() =>
+  import("./pages/DataManagementPage").then((module) => ({
+    default: module.DataManagementPage,
+  })),
+);
+const LeadExplorerPage = lazy(() =>
+  import("./pages/LeadExplorerPage").then((module) => ({
+    default: module.LeadExplorerPage,
   })),
 );
 
@@ -33,6 +45,7 @@ function Workspace() {
     return { registry, active };
   }, []);
   const datasetsResource = useApiResource(loader);
+  const pendingDatasetId = useRef<string | null>(null);
   const datasets = useMemo(
     () => datasetsResource.data?.registry.datasets ?? [],
     [datasetsResource.data],
@@ -48,12 +61,26 @@ function Workspace() {
     if (!datasetsResource.data) return;
     const { active, registry } = datasetsResource.data;
     const preferred = active.active_dataset?.dataset_id ?? registry.datasets[0]?.dataset_id ?? "";
+    const pending = pendingDatasetId.current;
+    if (pending && registry.datasets.some((dataset) => dataset.dataset_id === pending)) {
+      pendingDatasetId.current = null;
+      setSelectedDatasetId(pending);
+      return;
+    }
+    pendingDatasetId.current = null;
     setSelectedDatasetId((current) =>
       registry.datasets.some((dataset) => dataset.dataset_id === current)
         ? current
         : preferred,
     );
   }, [datasetsResource.data]);
+  const refreshDatasets = useCallback(
+    (selectDatasetId?: string) => {
+      pendingDatasetId.current = selectDatasetId ?? null;
+      datasetsResource.reload();
+    },
+    [datasetsResource.reload],
+  );
 
   if (datasetsResource.loading) {
     return (
@@ -115,6 +142,21 @@ function Workspace() {
             path="/funnel"
             element={<FunnelIntelligencePage datasetId={effectiveDatasetId} />}
           />
+          <Route
+            path="/data"
+            element={
+              <DataManagementPage
+                datasets={datasets}
+                selectedDatasetId={effectiveDatasetId}
+                onDatasetChange={setSelectedDatasetId}
+                onDatasetsChanged={refreshDatasets}
+              />
+            }
+          />
+          <Route
+            path="/leads"
+            element={<LeadExplorerPage datasetId={effectiveDatasetId} />}
+          />
           <Route path="*" element={<GrowthOverviewPage datasetId={effectiveDatasetId} />} />
         </Routes>
       </Suspense>
@@ -125,7 +167,11 @@ function Workspace() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Workspace />
+      <AdminTokenProvider>
+        <AnalyticsFilterProvider>
+          <Workspace />
+        </AnalyticsFilterProvider>
+      </AdminTokenProvider>
     </BrowserRouter>
   );
 }
