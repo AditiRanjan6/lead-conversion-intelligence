@@ -70,7 +70,24 @@ backend's active-dataset selection. Set `VITE_API_BASE_URL` at build time when
 the built frontend must call an API at a different origin. Configure the API's
 `LEAD_CONVERSION_CORS_ORIGINS` environment variable as a comma-separated list
 of allowed frontend origins. Without that setting, the API allows the
-`localhost` and `127.0.0.1` Vite origins on port 5173.
+`localhost` and `127.0.0.1` Vite origins on port 5173 and the deployed Render
+frontend origin.
+
+## Render deployment
+
+The production frontend uses
+`https://lead-conversion-intelligence.onrender.com` as its API origin unless
+`VITE_API_BASE_URL` overrides it. In the Render frontend service, set
+`VITE_API_BASE_URL` to that exact URL in the service's environment settings,
+then redeploy so Vite includes it in the generated frontend assets.
+
+The backend must allow the frontend origin
+`https://lead-conversion-intelligence-1.onrender.com`. This origin is included
+in the backend's default CORS allowlist. If the backend service already defines
+`LEAD_CONVERSION_CORS_ORIGINS`, add the frontend origin to its comma-separated
+value (alongside any other required origins), then redeploy/restart the backend.
+After both services finish deploying, verify `/api/datasets` on the backend and
+reload the frontend.
 
 Create and preview the production build with:
 

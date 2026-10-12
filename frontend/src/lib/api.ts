@@ -5,7 +5,11 @@ import type {
   GrowthOverview,
 } from "../types";
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const productionApiBaseUrl = "https://lead-conversion-intelligence.onrender.com";
+const apiBaseUrl = (
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.PROD ? productionApiBaseUrl : "")
+).replace(/\/$/, "");
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`, {

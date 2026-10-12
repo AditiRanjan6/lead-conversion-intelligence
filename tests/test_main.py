@@ -38,6 +38,26 @@ def test_api_cors_allows_configured_local_frontend_origin(tmp_path, monkeypatch)
     assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
 
 
+def test_api_cors_allows_deployed_frontend_origin(tmp_path, monkeypatch):
+    database_path = tmp_path / "api.sqlite3"
+    monkeypatch.setenv("LEAD_CONVERSION_DB_PATH", str(database_path))
+
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/datasets",
+            headers={
+                "Origin": "https://lead-conversion-intelligence-1.onrender.com",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "accept",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "https://lead-conversion-intelligence-1.onrender.com"
+    )
+
+
 def test_cors_origins_can_be_explicitly_configured(monkeypatch):
     monkeypatch.setenv(
         "LEAD_CONVERSION_CORS_ORIGINS",
@@ -48,6 +68,12 @@ def test_cors_origins_can_be_explicitly_configured(monkeypatch):
         "https://dashboard.example",
         "https://admin.example",
     ]
+
+
+def test_default_cors_origins_include_deployed_frontend(monkeypatch):
+    monkeypatch.delenv("LEAD_CONVERSION_CORS_ORIGINS", raising=False)
+
+    assert "https://lead-conversion-intelligence-1.onrender.com" in _get_cors_origins()
 
 
 @pytest.mark.parametrize("configured_origins", ["", " , ", "*"])

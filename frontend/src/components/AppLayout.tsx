@@ -156,7 +156,7 @@ export function AppLayout({
               </span>
               <span className="creator-links">
                 <a
-                  href="https://www.linkedin.com/in/aditiranjan/"
+                  href="https://www.linkedin.com/in/aditi-ranjan-51780b255/"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Aditi Ranjan on LinkedIn"
